@@ -1,76 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  generateTable,
-  parseProblem,
-  validateStatusAgainstFiles,
-  type ProblemMetadata,
-} from "./reindex.ts";
-
-describe("parseProblem", () => {
-  it("parses a complete frontmatter block", () => {
-    const content = `---
-platform: leetcode
-id: "1"
-slug: two-sum
-difficulty: Easy
-tags: [array, hash-map]
-url: https://leetcode.com/problems/two-sum/
-status: {ts: {brute: solved, optimal: solved}}
----
-
-Notes go here.
-`;
-
-    expect(parseProblem(content)).toEqual({
-      platform: "leetcode",
-      id: "1",
-      slug: "two-sum",
-      difficulty: "Easy",
-      tags: ["array", "hash-map"],
-      url: "https://leetcode.com/problems/two-sum/",
-      status: { ts: { brute: "solved", optimal: "solved" } },
-    });
-  });
-
-  const requiredFields = ["platform", "id", "slug", "difficulty", "tags", "url", "status"];
-  const fullFrontmatter: Record<string, string> = {
-    platform: "leetcode",
-    id: '"1"',
-    slug: "two-sum",
-    difficulty: "Easy",
-    tags: "[array, hash-map]",
-    url: "https://leetcode.com/problems/two-sum/",
-    status: "{ts: {optimal: solved}}",
-  };
-
-  it.each(requiredFields)("throws when %s is missing", (missingField) => {
-    const lines = requiredFields
-      .filter((field) => field !== missingField)
-      .map((field) => `${field}: ${fullFrontmatter[field]}`);
-    const content = `---\n${lines.join("\n")}\n---\n\nNotes.\n`;
-
-    expect(() => parseProblem(content)).toThrow(missingField);
-  });
-
-  const baseFrontmatter = `platform: leetcode
-id: "1"
-slug: two-sum
-difficulty: Easy
-tags: [array, hash-map]
-url: https://leetcode.com/problems/two-sum/`;
-
-  it("throws when status names an unknown language", () => {
-    const content = `---\n${baseFrontmatter}\nstatus: {rust: {optimal: solved}}\n---\n\nNotes.\n`;
-
-    expect(() => parseProblem(content)).toThrow(/unknown language/i);
-  });
-
-  it("throws when status has an unknown state value", () => {
-    const content = `---\n${baseFrontmatter}\nstatus: {ts: {optimal: done}}\n---\n\nNotes.\n`;
-
-    expect(() => parseProblem(content)).toThrow(/unknown status/i);
-  });
-});
+import { generateTable } from "./generate-table.ts";
+import type { ProblemMetadata } from "./types.ts";
 
 describe("generateTable", () => {
   const twoSum: ProblemMetadata = {
@@ -162,34 +92,5 @@ describe("generateTable", () => {
         "| _No problems yet._ | | | | |  |  |  |",
       ].join("\n"),
     );
-  });
-});
-
-describe("validateStatusAgainstFiles", () => {
-  it("does not throw when discovered files and status entries match", () => {
-    expect(() =>
-      validateStatusAgainstFiles(
-        { ts: ["brute", "optimal"] },
-        { ts: { brute: "solved", optimal: "solved" } },
-      ),
-    ).not.toThrow();
-  });
-
-  it("throws when a file has no matching status entry", () => {
-    expect(() =>
-      validateStatusAgainstFiles(
-        { ts: ["brute", "optimal"] },
-        { ts: { brute: "solved" } },
-      ),
-    ).toThrow(/ts\/optimal/);
-  });
-
-  it("throws when a status entry has no matching file", () => {
-    expect(() =>
-      validateStatusAgainstFiles(
-        { ts: ["brute"] },
-        { ts: { brute: "solved", optimal: "solved" } },
-      ),
-    ).toThrow(/ts\/optimal/);
   });
 });
