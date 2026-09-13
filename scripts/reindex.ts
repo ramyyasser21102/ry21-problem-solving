@@ -2,6 +2,17 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 
+export type Language = "ts" | "py" | "cpp";
+
+export type SolveState =
+  | "un-solved"
+  | "need-study"
+  | "attempted"
+  | "in-progress"
+  | "solved";
+
+export type StatusMap = Partial<Record<Language, Record<string, SolveState>>>;
+
 export interface ProblemFrontmatter {
   platform: "leetcode" | "hackerrank" | "codeforces";
   id: string;
@@ -9,6 +20,7 @@ export interface ProblemFrontmatter {
   difficulty: string;
   tags: string[];
   url: string;
+  status: StatusMap;
 }
 
 const REQUIRED_FIELDS = [
@@ -18,7 +30,43 @@ const REQUIRED_FIELDS = [
   "difficulty",
   "tags",
   "url",
+  "status",
 ] as const;
+
+const LANGUAGES: Language[] = ["ts", "py", "cpp"];
+const SOLVE_STATES: SolveState[] = [
+  "un-solved",
+  "need-study",
+  "attempted",
+  "in-progress",
+  "solved",
+];
+
+function validateStatusShape(status: unknown): asserts status is StatusMap {
+  if (typeof status !== "object" || status === null || Array.isArray(status)) {
+    throw new Error('Frontmatter field "status" must be an object');
+  }
+
+  for (const [language, approaches] of Object.entries(status)) {
+    if (!LANGUAGES.includes(language as Language)) {
+      throw new Error(`Unknown language "${language}" in "status"`);
+    }
+    if (
+      typeof approaches !== "object" ||
+      approaches === null ||
+      Array.isArray(approaches)
+    ) {
+      throw new Error(`"status.${language}" must be an object`);
+    }
+    for (const [approach, state] of Object.entries(approaches)) {
+      if (!SOLVE_STATES.includes(state as SolveState)) {
+        throw new Error(
+          `Unknown status "${state}" for "status.${language}.${approach}"`,
+        );
+      }
+    }
+  }
+}
 
 export function parseProblem(content: string): ProblemFrontmatter {
   const { data } = matter(content);
@@ -33,6 +81,8 @@ export function parseProblem(content: string): ProblemFrontmatter {
     throw new Error('Frontmatter field "tags" must be an array');
   }
 
+  validateStatusShape(data.status);
+
   return {
     platform: data.platform,
     id: String(data.id),
@@ -40,14 +90,13 @@ export function parseProblem(content: string): ProblemFrontmatter {
     difficulty: data.difficulty,
     tags: data.tags,
     url: data.url,
+    status: data.status,
   };
 }
 
 export interface ProblemMetadata extends ProblemFrontmatter {
   /** Folder path relative to the repo root, e.g. "leetcode/0001-two-sum" */
   path: string;
-  /** Language subfolder names found under the problem's folder, e.g. ["ts"] */
-  languages: string[];
 }
 
 const PLATFORM_ORDER: ProblemFrontmatter["platform"][] = [
@@ -62,10 +111,24 @@ const PLATFORM_LABELS: Record<ProblemFrontmatter["platform"], string> = {
   codeforces: "Codeforces",
 };
 
+const LANGUAGE_COLUMN_LABELS: Record<Language, string> = {
+  ts: "TS",
+  py: "Python",
+  cpp: "C++",
+};
+
 const TABLE_HEADER = [
-  "| Platform | # | Problem | Difficulty | Tags | Languages solved in |",
-  "| --- | --- | --- | --- | --- | --- |",
+  `| Platform | # | Problem | Difficulty | Tags | ${LANGUAGES.map((l) => LANGUAGE_COLUMN_LABELS[l]).join(" | ")} |`,
+  `| --- | --- | --- | --- | --- | ${LANGUAGES.map(() => "---").join(" | ")} |`,
 ].join("\n");
+
+function renderLanguageCell(approaches: Record<string, SolveState> | undefined): string {
+  if (!approaches) return "";
+  return Object.keys(approaches)
+    .sort()
+    .map((approach) => `${approach}: ${approaches[approach]}`)
+    .join(", ");
+}
 
 function slugToTitle(slug: string): string {
   return slug
@@ -85,7 +148,10 @@ function compareIds(a: string, b: string): number {
 
 export function generateTable(problems: ProblemMetadata[]): string {
   if (problems.length === 0) {
-    return [TABLE_HEADER, "| _No problems yet._ | | | | | |"].join("\n");
+    const emptyCells = LANGUAGES.map(() => "").join(" | ");
+    return [TABLE_HEADER, `| _No problems yet._ | | | | | ${emptyCells} |`].join(
+      "\n",
+    );
   }
 
   const sorted = [...problems].sort((a, b) => {
@@ -97,10 +163,43 @@ export function generateTable(problems: ProblemMetadata[]): string {
 
   const rows = sorted.map((problem) => {
     const title = slugToTitle(problem.slug);
-    return `| ${PLATFORM_LABELS[problem.platform]} | ${problem.id} | [${title}](${problem.path}) | ${problem.difficulty} | ${problem.tags.join(", ")} | ${problem.languages.join(", ")} |`;
+    const languageCells = LANGUAGES.map((language) =>
+      renderLanguageCell(problem.status[language]),
+    ).join(" | ");
+    return `| ${PLATFORM_LABELS[problem.platform]} | ${problem.id} | [${title}](${problem.path}) | ${problem.difficulty} | ${problem.tags.join(", ")} | ${languageCells} |`;
   });
 
   return [TABLE_HEADER, ...rows].join("\n");
+}
+
+export function validateStatusAgainstFiles(
+  discovered: Partial<Record<Language, string[]>>,
+  status: StatusMap,
+): void {
+  const languages = new Set<Language>([
+    ...(Object.keys(discovered) as Language[]),
+    ...(Object.keys(status) as Language[]),
+  ]);
+
+  for (const language of languages) {
+    const files = new Set(discovered[language] ?? []);
+    const entries = new Set(Object.keys(status[language] ?? {}));
+
+    for (const approach of files) {
+      if (!entries.has(approach)) {
+        throw new Error(
+          `Approach file "${language}/${approach}" has no matching status entry`,
+        );
+      }
+    }
+    for (const approach of entries) {
+      if (!files.has(approach)) {
+        throw new Error(
+          `Status entry "${language}/${approach}" has no matching file`,
+        );
+      }
+    }
+  }
 }
 
 // --- CLI glue below: walks the repo, reads problem READMEs, and rewrites
@@ -121,12 +220,25 @@ function findProblemReadmes(platformDir: string): string[] {
     .map((entry) => path.join(entry.parentPath, entry.name));
 }
 
-function discoverLanguages(problemDir: string): string[] {
-  return fs
+function discoverApproaches(
+  problemDir: string,
+): Partial<Record<Language, string[]>> {
+  const result: Partial<Record<Language, string[]>> = {};
+
+  const languageDirs = fs
     .readdirSync(problemDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
+    .filter((entry) => entry.isDirectory());
+
+  for (const dir of languageDirs) {
+    const languageDir = path.join(problemDir, dir.name);
+    const approaches = fs
+      .readdirSync(languageDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name.replace(/\.[^.]+$/, ""));
+    result[dir.name as Language] = approaches;
+  }
+
+  return result;
 }
 
 function replaceMarkedBlock(readme: string, table: string): string {
@@ -165,10 +277,20 @@ function main(): void {
       }
 
       const problemDir = path.dirname(readmePath);
+      const discovered = discoverApproaches(problemDir);
+
+      try {
+        validateStatusAgainstFiles(discovered, frontmatter.status);
+      } catch (error) {
+        console.error(
+          `Status mismatch in ${relativePath}: ${(error as Error).message}`,
+        );
+        process.exit(1);
+      }
+
       problems.push({
         ...frontmatter,
         path: path.relative(root, problemDir),
-        languages: discoverLanguages(problemDir),
       });
     }
   }

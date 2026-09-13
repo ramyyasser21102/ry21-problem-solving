@@ -5,6 +5,10 @@ slug: two-sum
 difficulty: Easy
 tags: [array, hash-map]
 url: https://leetcode.com/problems/two-sum/
+status:
+  ts:
+    brute: solved
+    optimal: solved
 ---
 
 # Two Sum

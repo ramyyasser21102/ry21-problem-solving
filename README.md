@@ -5,7 +5,7 @@ Solutions to problems from LeetCode, HackerRank, and Codeforces, organized by pl
 Run `npm run reindex` after adding a problem to regenerate the table below.
 
 <!-- PROBLEMS:START -->
-| Platform | # | Problem | Difficulty | Tags | Languages solved in |
-| --- | --- | --- | --- | --- | --- |
-| LeetCode | 1 | [Two Sum](leetcode/0001-two-sum) | Easy | array, hash-map | ts |
+| Platform | # | Problem | Difficulty | Tags | TS | Python | C++ |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| LeetCode | 1 | [Two Sum](leetcode/0001-two-sum) | Easy | array, hash-map | brute: solved, optimal: solved |  |  |
 <!-- PROBLEMS:END -->

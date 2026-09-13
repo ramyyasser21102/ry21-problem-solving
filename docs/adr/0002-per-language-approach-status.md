@@ -1,0 +1,3 @@
+# Per-(language, approach) solve status
+
+Each problem's solve status is tracked independently per language and per approach (e.g. an `optimal` approach in TypeScript and the same `optimal` approach in Python can be in different states), rather than one status for the whole problem or one status per approach shared across languages. A single problem-level status would hide real differences: a problem finished in TypeScript might still be unattempted in Python, and even within one language, a brute-force approach might be solved while an optimal approach is still in progress. The five states (Un-Solved, Need Study, Attempted, In Progress, Solved) track a single approach's own journey, and only exist once that approach's file actually exists on disk.
