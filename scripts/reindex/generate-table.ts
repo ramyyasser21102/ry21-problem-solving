@@ -3,6 +3,7 @@ import {
   LANGUAGES,
   PLATFORM_LABELS,
   PLATFORM_ORDER,
+  slugToTitle,
   type ProblemMetadata,
   type SolveState,
 } from "./types.ts";
@@ -20,13 +21,6 @@ function renderLanguageCell(
     .sort()
     .map((approach) => `${approach}: ${approaches[approach]}`)
     .join(", ");
-}
-
-function slugToTitle(slug: string): string {
-  return slug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 }
 
 function compareIds(a: string, b: string): number {

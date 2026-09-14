@@ -4,10 +4,12 @@
   "type": "module",
   "scripts": {
     "reindex": "tsx scripts/reindex.ts",
+    "generate:problem": "tsx scripts/generate-problem.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@clack/prompts": "^1.8.1",
     "@types/node": "^26.5.1",
     "gray-matter": "^4.0.3",
     "tsx": "^4.23.13",

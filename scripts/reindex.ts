@@ -57,7 +57,7 @@ function replaceMarkedBlock(readme: string, table: string): string {
   return `${before}\n${table}\n${after}`;
 }
 
-function main(): void {
+export function reindex(): void {
   const root = process.cwd();
   const problems: ProblemMetadata[] = [];
 
@@ -111,5 +111,5 @@ const isMainModule =
   import.meta.url === `file://${path.resolve(process.argv[1])}`;
 
 if (isMainModule) {
-  main();
+  reindex();
 }
