@@ -8,4 +8,5 @@ Run `npm run reindex` after adding a problem to regenerate the table below.
 | Platform | # | Problem | Difficulty | Tags | TS | Python | C++ |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | LeetCode | 1 | [Two Sum](leetcode/0001-two-sum) | Easy | array, hash-map | brute: solved, optimal: solved |  |  |
+| LeetCode | 217 | [Contains Duplicate](leetcode/0217-contains-duplicate) | Easy | array, hash-map | brute: attempted, optimal: un-solved |  |  |
 <!-- PROBLEMS:END -->
